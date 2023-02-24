@@ -1,0 +1,597 @@
+metadata: 
+  title: |  
+    Mandate to Let 
+  short title: |
+    Mandate
+  description: |
+    This interview produces a mandate to let for Renprop (Pty) Ltd. 
+---
+
+modules:
+  # - .mandateDB 
+  - .mandate_db
+  - .functions
+  - .custom_classes
+---
+
+objects:
+  - owners: DAList.using(there_are_any=True, object_type=Owner, there_is_another=False)
+  - units: DAList.using(there_are_any=True, object_type=Unit, there_is_another=False)
+  - account: Account
+  - body_corporate: BodyCorporate
+  
+---
+mandatory: True 
+code: |
+
+  # Set the type of the first owner in the list
+  owners[0].person_classification
+  
+  for owner in owners:
+    if (owner.person_classification == "South African ID Holder" or owner.person_classification == "Foreign National"):
+      # If the owner is an individual, get their primary contact number, address and ID doccument
+      owner.primary_contact_number
+      owner.owner_address
+      owner.unique_id_upload
+      owner.proof_of_address_upload
+    if (owner.person_classification == "Company" or owner.person_classification == "Trust"):
+      # If the owner is a company or trust, get their primary contact number, address, and entity resolution document
+      owner.primary_contact_number
+      owner.owner_address
+      owner.entity_resolution_upload
+      owner.entity_documents_upload
+  view_owner_table
+  
+ 
+  # Start the section for entering unit information
+  units[0].unit_no
+  # Get whether the unit is vacant or not, the rental amount, and the account name
+  for unit in units:
+    unit.vacant_on_application
+    unit.pet_friendly
+    unit.rental_sought
+  # View the unit table
+  view_unit_table 
+
+  account.account_holder_name
+  body_corporate.on_renprop 
+
+---
+
+generic object: DAObject
+question: |
+  ## Owner information  
+subquestion: |
+
+fields:
+  - Owner is a: x[i].person_classification 
+    datatype: radio
+    default: South African ID Holder 
+    choices:
+      - South African ID holder : South African ID Holder 
+      - Foreign national (no South African ID) : Foreign National
+      - South African company : Company
+      - South African trust : Trust
+  - First name(s): x[i].first_name
+    default: Matthew Harrison
+    js show if: |
+      (val("x[i].person_classification") == "South African ID Holder" || val("x[i].person_classification") == "Foreign National") 
+  - Surname: x[i].surname  
+    default: Cornfield
+    js show if: |
+      (val("x[i].person_classification") == "South African ID Holder" || val("x[i].person_classification") == "Foreign National") 
+  - Entity name: x[i].entity_name 
+    default: Vertex 
+    js show if: | 
+      (val("x[i].person_classification") == "Company") || val("x[i].person_classification") == "Trust"
+  - ID number: x[i].unique_number  
+    # default: 9902265150084
+    js show if: |
+      (val("x[i].person_classification") == "South African ID Holder")
+  - Passport number: x[i].unique_number 
+    # default: A963927 
+    js show if: |
+      (val("x[i].person_classification") == "Foreign National") 
+
+  # - Passport expiry date: x[i].passport_expiry
+  #   datatype: date
+  #   js show if: |
+  #     (val("x[i].person_classification") == "Foreign National") 
+  # - Birth date: x[i].date_of_birth
+  #   datatype: date
+  #   js show if: |
+  #     (val("x[i].person_classification") == "Foreign National") 
+  # - Country of citizenship: x[i].country_of_citizenship  
+  #   code: countries_list()
+  #   show if: 
+  #     variable: x[i]..has_sa_id
+  #     is: False
+  # - Sex: x[i].sex
+  #   input type: radio 
+  #   choices: 
+  #     - Male : Male
+  #     - Female : Female
+  #     - Prefer not to say : Other
+  #   js show if: |
+  #     (val("x[i].person_classification") == "Foreign National") 
+  - Registration number: x[i].unique_number   
+    # default: 41198
+    js show if: |
+      (val("x[i].person_classification") == "Company") || val("x[i].person_classification") == "Trust"
+  - Asset value / annual turnover below or above R 2 million?: x[i].cpa_applicable
+    datatype: radio
+    default: True
+    choices: 
+      - Above: True 
+      - Below: False 
+    js show if: |
+      (val("x[i].person_classification") == "Company") || val("x[i].person_classification") == "Trust"
+validation code: | 
+
+  #If the owner is a South African ID holder or foreign national,
+  # set the owner's name to their first and last name
+  if (x[i].person_classification == "South African ID Holder" or x[i].person_classification == "Foreign National"):
+    # If the owner is an individual, their name is the concatenation of their first and last names
+    x[i].full_name = x[i].first_name + ' ' + x[i].surname
+    x[i].person_type = 'Natural Person'
+  if (x[i].person_classification == "Company" or x[i].person_classification == "Trust"):
+    # If the owner is a company or trust, their name is the entity name
+    x[i].full_name = x[i].entity_name  
+    x[i].person_type = 'Juristic Person'
+  # Append the owner's name to the list  
+  # owner_list.append(x[i].full_name) 
+
+  validate_id_number(x[i])
+  # x.db_read()
+
+list collect:
+  enable: true
+  is final: true
+  allow delete: true
+  add another label: Add owner
+---
+
+generic object: DAObject
+question: |
+    ## Contact Information
+    ##### Owner - ${ owner.full_name }
+subquestion:
+  Please enter owners contact information below.
+  
+fields:  
+    
+  - Country: phone_country
+    code: countries_list()
+    default: "South Africa"
+
+  - Primary Contact number: x.primary_contact_number
+    default: '0764923959'
+
+  - Do you have an alternative contact number?: alternative_number
+    datatype: yesnoradio
+    default: False
+
+  - Alternative Contact number: x.alternative_contact_number
+    show if: alternative_number
+    required: False
+    default: '0217944739'
+
+  - Email: x.email
+    datatype: email     
+    default: "ryan@test.com"
+
+validation code: |
+
+  if not phone_number_is_valid(x.primary_contact_number, country=phone_country):
+    validation_error('Please enter a valid phone number for ' + country_name(phone_country) + '.', field='x.primary_contact_number')
+  if alternative_number:
+    if not phone_number_is_valid(x.alternative_contact_number, country=phone_country):
+      validation_error('Please enter a valid phone number for ' + country_name(phone_country) + '.', field='x.alternative_contact_number')
+
+---
+generic object: DAObject
+question: |
+  ## Address
+  ##### Owner - ${ owner.full_name }
+  
+fields: 
+  - Address: x.owner_address
+    default: 7 Thorne Close
+
+  - City: x.city
+    default: Cape Town
+
+  - Suburb: x.county
+    default: Cape Town
+
+  - Province: x.state
+    default: Western Cape
+    code: |
+      states_list()
+
+  - Zip: x.zip
+    default: 7806
+    datatype: integer
+    
+  - "Postal address the same as residential address?": same_address
+    default: True
+    datatype: yesnoradio
+    
+  - Address: x.postal_address
+    hide if: same_address
+  - City: x.postal_city
+    hide if: same_address
+  - Suburb: x.Postal_county
+    hide if: same_address
+  - Province: x.postal_state
+    hide if: same_address
+    code: |
+     states_list()
+  - Zip: x.Postal_zip
+    hide if: same_address  
+
+validation code: |
+  if same_address:
+    x.postal_address = x.owner_address
+    x.postal_city = x.city
+    x.Postal_county = x.county
+    x.postal_state = x.state
+    x.postal_zip = x.zip
+
+  # x.db_read()
+
+---
+generic object: DAObject
+question: |
+  ## Identity Document Upload 
+  ##### Owner - ${ owner.full_name }
+  
+  
+fields:
+  - Identity document: owners[i].unique_id_upload
+    datatype: file
+
+---
+generic object: DAObject
+question: |
+  ## Proof of Address Upload
+  ##### Owner - ${ owner.full_name }
+  
+fields:
+  - Proof of address: owners[i].proof_of_address_upload
+    datatype: file
+
+---
+# get clarity from Renprop as to exactly what documents are required
+generic object: DAObject
+question: |
+  ## Entity Resolution Document Upload
+  ##### Owner - ${ owner.full_name }
+  
+fields:
+  - Entity resolution: owners[i].entity_resolution_upload
+    datatype: file
+
+---
+generic object: DAObject
+question: |
+  ## Entity Power of Contracting Document Upload
+  ##### Owner - ${ owner.full_name }
+  
+fields: 
+  - Entity documents: owners[i].entity_documents_upload
+    datatype: file
+ 
+---
+question: |
+  ## Review Owner information
+subquestion: |
+  Please review owner details thoroughly.
+  ${ owners.table }
+field: view_owner_table
+
+---
+table: owners.table
+rows: owners
+columns:
+  - Owners Name: row_item.full_name
+  - Type: row_item.person_classification
+edit:
+  - owners.first_name
+---
+
+generic object: DAObject
+question: | 
+  ## Unit information 
+fields: 
+  - Complex name: x[i].name
+    default: Glenwell Esate
+  - Unit number: x[i].unit_no
+    default: 112
+    datatype: String
+  - Floor number: x[i].unit_floor
+    default: 2
+    datatype: String
+  - Address: x[i].address  
+    default:  7 Glenwell Lane 
+  - City: x[i].city
+    default: Pretoria
+  - Suburb: x[i].county
+    default: Constantia
+  - Province: x[i].state
+    default: Gauteng
+    code: |
+      states_list()
+  - Zip: x[i].zip
+    default: 4112
+    datatype: integer
+validation code: |
+
+  # Set the name of the unit as the concatenation of the unit's address, complex number, and name
+  x[i].title = x[i].address + ', ' + str(x[i].unit_no) + ', ' + x[i].name
+
+list collect:
+  enable: true
+  is final: true
+  allow delete: true
+  add another label: Add unit
+---
+     
+generic object: DAObject
+question: |
+  ## Unit Details
+  ##### ${ x.title }   
+fields:
+  - Vacant on application date: x.vacant_on_application
+    datatype: radio
+    default: Vacant
+    choices:
+      - Vacant
+      - Non-vacant
+
+  - Occupant name: x.occupant_name
+    default: Lily Roberts
+    js show if: |
+      (val("x.vacant_on_application") == "Non-vacant") 
+
+  - Country Code : x.occupantPhone_country
+    code: countries_list()
+    default: "South Africa"
+    js show if: |
+      (val("x.vacant_on_application") == "Non-vacant") 
+
+  - Occupant contact number: x.occupant_contact_no
+    default: "0824935572"
+    js show if: |
+      (val("x.vacant_on_application") == "Non-vacant") 
+
+  - Size(m2): x.unit_size
+    default: 41
+    datatype: integer
+  - Number of bedrooms: x.bedroom_count
+    default: 2
+    datatype: integer
+  - Number of bathrooms: x.bathroom_count
+    default: 1
+    datatype: integer
+
+validation code: |
+  if x.vacant_on_application == "Non-vacant":
+    if not phone_number_is_valid(x.occupant_contact_no, country=x.occupantPhone_country):
+      validation_error('Please enter a valid phone number for ' + country_name(x.occupantPhone_country) + '.', field='x.occupant_contact_no')
+
+---
+generic object: DAObject
+question: |
+  ## Amenities
+  ##### ${ x.title } 
+  
+fields:
+  - Furnished: x.furnished
+    default: True
+    datatype: yesnoradio 
+    
+  - Lounge/Dining room: x.lounge
+    default: True
+    datatype: yesnoradio 
+
+  - Study/Loft: x.study
+    default: True
+    datatype: yesnoradio 
+
+  - Balcony/Garden: x.garden
+    default: True
+    datatype: yesnoradio 
+
+  - Parking bay: x.parking
+    default: True
+    datatype: yesnoradio 
+
+  - Pet friendly: x.pet_friendly
+    default: True
+    datatype: yesnoradio 
+
+---
+generic object: DAObject
+question: |
+   ## Mandate 
+   ##### ${ x.title } 
+fields:
+  - Rental sought: x.rental_sought
+    default: 3500
+    help: |
+      Per month
+    datatype: currency
+    min: 0
+    currency symbol: ZAR
+
+  - Sole mandate: x.sole_mandate
+    default: True
+    datatype: yesnoradio 
+
+  - Mandate type: x.mandate_type
+    default: OPTION A
+    datatype: radio
+    choices:
+      - Option A : OPTION A
+        help: |
+          Placement of tenant and monthly management of lease 
+      - Option B : OPTION B
+        help: | 
+          Placement of tenant ONLY 
+
+  - Do you give Renprop (Pty) Ltd the authority to sign the standard lease agreement on the registered owner's behalf?: x.lease_authority
+    datatype: yesnoradio
+    default: True
+    js show if: |
+      (val("x.mandate_type") == "OPTION A")
+
+  - Mandate commences on: x.mandate_commencement
+    default: 24/06/23
+    datatype: date
+    min: ${ today() }
+
+  - Mandate Duration: x.mandate_duration
+    datatype: integer
+    default: 12
+    max: 24 
+    min: 1
+    help: |
+      Not exceeding 24 months
+    validation messages:
+      max: |
+        Please enter a value not exceeding 24 months!
+      min: |
+        Please enter a value greater than 0 months!
+
+validation code: |
+  x.mandate_termination = x.mandate_commencement + date_interval(months=x.mandate_duration) 
+---
+
+question: |
+  ## Review Unit information
+subquestion: |
+  Please review unit details thoroughly.
+  ${ unit_table }
+field: view_unit_table
+---
+
+table: unit_table
+rows: units
+columns:
+  - Unit: row_item.address
+---
+
+generic object: DAObject
+question: |
+  ## Bank Account 
+fields:
+  - Account name: x.account_holder_name
+    default: Matt Cornfield
+
+  - Account type: x.account_type
+    default: Cheque Account 
+    datatype: radio
+    choices:
+      - Cheque Account 
+      - Savings account 
+      - Transmission Account 
+      - Bond Account 
+      - Credit Card Account
+      - Subscription Account
+
+  - Account number: x.bank_account_number
+    default: 18002345678
+  - Bank name: x.account_bank
+    default: First National Bank
+---
+
+generic object: DAObject
+question: |
+  ## Body Corporate Levy
+fields:
+  - Body corporate levy to be paid by Renprop (Pty) Ltd : x.on_renprop
+    default: True
+    datatype: yesnoradio 
+
+  - Current monthly levy: x.monthly_levy
+    datatype: currency
+    default: 1500
+    min: 0
+    currency symbol: ZAR
+    show if: x.on_renprop
+    required: False
+
+  - Levy renewal date: x.Levy_Renewal_Date
+    datatype: date
+    default: 21/02/24
+    min: ${ today() }
+    show if: x.on_renprop
+    required: False
+    
+  - Account name: x.corporate_account_holder_name
+    default: Unit Holdings Ltd
+    show if: x.on_renprop
+    required: False
+
+  - Account type: x.account_type
+    default: Cheque Account 
+    datatype: radio
+    choices:
+      - Cheque Account 
+      - Savings account 
+      - Transmission Account 
+      - Bond Account 
+      - Credit Card Account
+      - Subscription Account
+
+  - Bank: x.bank
+    default: FNB
+    show if: x.on_renprop
+    required: False
+
+  - Account number: x.account_no
+    datatype: integer
+    default: 17235674223
+    show if: x.on_renprop
+    required: False
+
+  - Address: x.address   
+    default: 8 Wester Road
+    show if: x.on_renprop 
+    required: False
+
+  - City: x.city
+    default: Cape Town
+    show if: x.on_renprop
+    required: False
+
+  - Suburb: x.county
+    default: Constantia
+    js show if: |
+      x.on_renprop
+    required: False
+
+  - Province: x.state
+    default: Western CApe
+    show if: x.on_renprop
+    code: |
+      states_list()
+    required: False
+
+  - Zip: x.zip
+    datatype: integer
+    default: 7806
+    show if: x.on_renprop
+    required: False
+---
+
+mandatory: True
+question: Your document is ready.
+attachment:
+  - name: A hello world document
+    filename: Hello_World
+    description: |
+      A document with a classic message
+    content: |
+      Hello, worlds!
