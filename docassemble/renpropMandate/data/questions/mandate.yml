@@ -15,6 +15,7 @@ modules:
 ---
 
 objects:
+  - mandate_application: MandateApplication
   - owners: DAList.using(there_are_any=True, object_type=Owner, there_is_another=False)
   - units: DAList.using(there_are_any=True, object_type=Unit, there_is_another=False)
   - account: Account
@@ -26,7 +27,7 @@ code: |
 
   # Set the type of the first owner in the list
   owners[0].person_classification
-  
+  set_verified
   for owner in owners:
     if (owner.person_classification == "South African ID Holder" or owner.person_classification == "Foreign National"):
       # If the owner is an individual, get their primary contact number, address and ID doccument
@@ -41,6 +42,7 @@ code: |
       owner.entity_resolution_upload
       owner.entity_documents_upload
   view_owner_table
+  set_owner
   
  
   # Start the section for entering unit information
@@ -52,10 +54,41 @@ code: |
     unit.rental_sought
   # View the unit table
   view_unit_table 
+  set_unit
 
   account.account_holder_name
-  body_corporate.on_renprop 
+  set_account
 
+  body_corporate.on_renprop 
+  set_body_corporate
+  
+---
+
+code: |
+  mandate_application.status = "Awaiting verification" 
+  set_verified = True
+---
+
+code: |
+  for owner in owners:
+    owner.mandate_application = mandate_application 
+  set_owner = True
+---
+
+code: |
+  for unit in units:
+    unit.mandate_application = mandate_application 
+  set_unit = True
+---
+
+code: |
+  account.mandate_application = mandate_application 
+  set_account = True
+---
+
+code: |
+  body_corporate.mandate_application = mandate_application 
+  set_body_corporate = True
 ---
 
 generic object: DAObject
@@ -93,27 +126,26 @@ fields:
     js show if: |
       (val("x[i].person_classification") == "Foreign National") 
 
-  # - Passport expiry date: x[i].passport_expiry
-  #   datatype: date
-  #   js show if: |
-  #     (val("x[i].person_classification") == "Foreign National") 
-  # - Birth date: x[i].date_of_birth
-  #   datatype: date
-  #   js show if: |
-  #     (val("x[i].person_classification") == "Foreign National") 
-  # - Country of citizenship: x[i].country_of_citizenship  
-  #   code: countries_list()
-  #   show if: 
-  #     variable: x[i]..has_sa_id
-  #     is: False
-  # - Sex: x[i].sex
-  #   input type: radio 
-  #   choices: 
-  #     - Male : Male
-  #     - Female : Female
-  #     - Prefer not to say : Other
-  #   js show if: |
-  #     (val("x[i].person_classification") == "Foreign National") 
+  - Passport expiry date: x[i].passport_expiry
+    datatype: date
+    js show if: |
+      (val("x[i].person_classification") == "Foreign National") 
+  - Birth date: x[i].date_of_birth
+    datatype: date
+    js show if: |
+      (val("x[i].person_classification") == "Foreign National") 
+  - Country of citizenship: x[i].country_of_citizenship  
+    code: countries_list()
+    js show if: |
+      (val("x[i].person_classification") == "Foreign National") 
+  - Sex: x[i].sex
+    input type: radio 
+    choices: 
+      - Male : Male
+      - Female : Female
+      - Prefer not to say : Other
+    js show if: |
+      (val("x[i].person_classification") == "Foreign National") 
   - Registration number: x[i].unique_number   
     # default: 41198
     js show if: |
@@ -141,8 +173,7 @@ validation code: |
   # Append the owner's name to the list  
   # owner_list.append(x[i].full_name) 
 
-  validate_id_number(x[i])
-  # x.db_read()
+  # validate_id_number(x[i])
 
 list collect:
   enable: true
@@ -162,7 +193,7 @@ fields:
     
   - Country: phone_country
     code: countries_list()
-    default: "South Africa"
+    default: "South Africa" 
 
   - Primary Contact number: x.primary_contact_number
     default: '0764923959'
@@ -174,7 +205,7 @@ fields:
   - Alternative Contact number: x.alternative_contact_number
     show if: alternative_number
     required: False
-    default: '0217944739'
+    default: '0217944739' 
 
   - Email: x.email
     datatype: email     
@@ -231,21 +262,19 @@ fields:
     hide if: same_address  
 
 validation code: |
+
   if same_address:
     x.postal_address = x.owner_address
     x.postal_city = x.city
-    x.Postal_county = x.county
+    x.postal_county = x.county
     x.postal_state = x.state
     x.postal_zip = x.zip
-
-  # x.db_read()
 
 ---
 generic object: DAObject
 question: |
   ## Identity Document Upload 
   ##### Owner - ${ owner.full_name }
-  
   
 fields:
   - Identity document: owners[i].unique_id_upload
@@ -520,19 +549,16 @@ fields:
     min: 0
     currency symbol: ZAR
     show if: x.on_renprop
-    required: False
 
   - Levy renewal date: x.Levy_Renewal_Date
     datatype: date
     default: 21/02/24
     min: ${ today() }
     show if: x.on_renprop
-    required: False
     
   - Account name: x.corporate_account_holder_name
     default: Unit Holdings Ltd
     show if: x.on_renprop
-    required: False
 
   - Account type: x.account_type
     default: Cheque Account 
@@ -544,46 +570,45 @@ fields:
       - Bond Account 
       - Credit Card Account
       - Subscription Account
+    show if: x.on_renprop
 
   - Bank: x.bank
     default: FNB
     show if: x.on_renprop
-    required: False
+
+  - Branch code: x.branch
+    default: 77175
+    show if: x.on_renprop
+
 
   - Account number: x.account_no
     datatype: integer
     default: 17235674223
     show if: x.on_renprop
-    required: False
 
   - Address: x.address   
     default: 8 Wester Road
     show if: x.on_renprop 
-    required: False
 
   - City: x.city
     default: Cape Town
     show if: x.on_renprop
-    required: False
 
   - Suburb: x.county
     default: Constantia
     js show if: |
       x.on_renprop
-    required: False
 
   - Province: x.state
-    default: Western CApe
+    default: Western Cape
     show if: x.on_renprop
     code: |
       states_list()
-    required: False
 
   - Zip: x.zip
     datatype: integer
     default: 7806
     show if: x.on_renprop
-    required: False
 ---
 
 mandatory: True

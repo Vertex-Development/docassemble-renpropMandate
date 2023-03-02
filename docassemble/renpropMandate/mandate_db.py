@@ -8,7 +8,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker 
 
 # Only allow these names (DAObject classes) to be imported with a modules block
-__all__ = ['Owner', 'Account', 'Unit', 'BodyCorporate']
+__all__ = ['Owner', 'Account', 'Unit', 'BodyCorporate', 'MandateApplication']
 
 metadata_obj = MetaData(schema="mandate") 
 
@@ -26,15 +26,17 @@ class OwnerModel(Base):
     middle_names = Column(String(250))
     surname = Column(String(250))
     entity_name = Column(String(250))
-    primary_contact_number = Column(Integer)
-    alternative_contact_number = Column(Integer)
+    primary_contact_number = Column(String(250))
+    alternative_contact_number = Column(String(250)) 
     email_address = Column(String(250))
     physical_address = Column(String(250))
     physical_address_city = Column(String(250))
     physical_address_suburb = Column(String(250))
+    physical_address_province = Column(String(250))
     physical_address_postal_code = Column(Integer)
     postal_address = Column(String(250))
     postal_address_city = Column(String(250))
+    postal_address_suburb = Column(String(250))
     postal_address_province = Column(String(250))
     postal_address_postal_code = Column(Integer)
     # Identity_Document = Column(file) 
@@ -42,6 +44,7 @@ class OwnerModel(Base):
     # Entity_Resolution = Column(file)
     # Entity_Documents = Column(file)
     cpa_applicable = Column(Boolean) 
+    application_id = Column(Integer, ForeignKey('mandate_applications.id', ondelete='CASCADE')) 
 
 class UnitModel(Base):
     __tablename__ = 'units'
@@ -66,6 +69,7 @@ class UnitModel(Base):
     garden = Column(Boolean)
     parking = Column(Boolean)
     pet_friendly = Column(Boolean)
+    application_id = Column(Integer, ForeignKey('mandate_applications.id', ondelete='CASCADE')) 
 
 class AccountModel(Base):
     __tablename__ = 'accounts'
@@ -74,15 +78,16 @@ class AccountModel(Base):
     account_type = Column(String(250))
     account_number = Column(String(250))
     bank = Column(String(250))
+    application_id = Column(Integer, ForeignKey('mandate_applications.id', ondelete='CASCADE')) 
 
 class BodyCorporateModel(Base):
-    __tablename__ = 'body__corporates'
+    __tablename__ = 'body_corporates'
     id = Column(Integer, primary_key=True)
     monthly_levy = Column(Integer)
     renewal_date = Column(String(250))
     account_holder = Column(String(250))
     account_type = Column(String(250))
-    account_number = Column(Integer)
+    account_number = Column(String(250))
     bank = Column(String(250))
     branch_code = Column(Integer)
     address = Column(String(250))
@@ -90,15 +95,12 @@ class BodyCorporateModel(Base):
     suburb = Column(String(250))
     province = Column(String(250))
     zip = Column(String(250))
+    application_id = Column(Integer, ForeignKey('mandate_applications.id', ondelete='CASCADE')) 
 
 class MandateApplicationModel(Base):
     __tablename__ = 'mandate_applications'
     id = Column(Integer, primary_key=True)
-    approved = Column(String(250))
-    owner_id = Column(Integer, ForeignKey('owners.id', ondelete='CASCADE'))
-    unit_id = Column(Integer, ForeignKey('units.id', ondelete='CASCADE')) 
-    account_id = Column(Integer, ForeignKey('accounts.id', ondelete='CASCADE'))
-    body_corporate_id = Column(Integer, ForeignKey('body__corporates.id', ondelete='CASCADE'))
+    status = Column(String(250))
 
 # Form the URL for connecting to the database based on the "demo db" directive in the Configuration
 url = alchemy_url('demo db')
@@ -130,6 +132,8 @@ class Owner(DAObject, SQLObject):
     def init(self, *pargs, **kwargs, ):
         super().init(*pargs, **kwargs)
         self.sql_init()
+        if not hasattr(self, 'mandate_application'):
+            self.initializeAttribute('mandate_application', MandateApplication)
 
     def db_get(self, column):
         if column == 'unique_identification_number':
@@ -156,14 +160,18 @@ class Owner(DAObject, SQLObject):
             return self.owner_address
         if column == 'physical_address_city':
             return self.city
-        if column == 'physical_address_suburb':
+        if column == 'physical_address_suburb': 
             return self.county
+        if column == 'physical_address_province': 
+            return self.state
         if column == 'physical_address_postal_code':
             return self.zip
         if column == 'postal_address':
             return self.postal_address
-        if column == 'postal_address_city':
+        if column == 'postal_address_city': 
             return self.postal_city
+        if column == 'postal_address_suburb': 
+            return self.postal_county 
         if column == 'postal_address_province':
             return self.postal_state
         if column == 'postal_address_postal_code':
@@ -178,7 +186,9 @@ class Owner(DAObject, SQLObject):
         #     return self.
         if column == 'cpa_applicable':
             return self.cpa_applicable
-        raise Exception("Invalid column " + column)
+        if column == 'application_id':     
+            return self.mandate_application.id  
+        raise Exception("Invalid column " + column) 
 
     def db_set(self, column, value):
         if column == 'unique_identification_number':
@@ -205,14 +215,18 @@ class Owner(DAObject, SQLObject):
             self.owner_address= value
         elif column == 'physical_address_city':
             self.city = value
-        elif column == 'physical_address_suburb':
+        elif column == 'physical_address_suburb': 
             self.county = value
+        elif column == 'physical_address_province': 
+            self.state = value
         elif column == 'physical_address_postal_code':
             self.zip = value
         elif column == 'postal_address':
             self.postal_address= value
-        elif column == 'postal_address_city':
+        elif column == 'postal_address_city': 
             self.postal_city= value
+        elif column == 'postal_address_suburb': 
+            self.postal_county= value
         elif column == 'postal_address_province':
             self.postal_state = value
         elif column == 'postal_address_postal_code':
@@ -227,6 +241,8 @@ class Owner(DAObject, SQLObject):
         #     self.entity_documents_upload = value
         elif column == 'cpa_applicable':
             self.cpa_applicable = value
+        elif column == 'application_id':
+            self.application_id = MandateApplication.by_id(value)
         else:
             raise Exception("Invalid column " + column) 
 
@@ -256,14 +272,18 @@ class Owner(DAObject, SQLObject):
              del self.owner_address 
         elif column == 'physical_address_city':
              del self.city  
-        elif column == 'physical_address_suburb':
+        elif column == 'physical_address_suburb': 
              del self.county  
+        elif column == 'physical_address_province': 
+             del self.state  
         elif column == 'physical_address_postal_code':
              del self.zip  
         elif column == 'postal_address':
              del self.postal_address 
-        elif column == 'postal_address_city':
+        elif column == 'postal_address_city': 
              del self.postal_city 
+        elif column == 'postal_address_suburb': 
+             del self.postal_county
         elif column == 'postal_address_province':
              del self.postal_state  
         elif column == 'postal_address_postal_code':
@@ -278,6 +298,8 @@ class Owner(DAObject, SQLObject):
         #      del self.entity_documents_upload  
         elif column == 'cpa_applicable':
              del self.cpa_applicable  
+        elif column == 'application_id':
+             del self.mandate_application.id
         else:
             raise Exception("Invalid column " + column)
 
@@ -290,6 +312,8 @@ class Unit(DAObject, SQLObject):
     def init(self, *pargs, **kwargs, ):
         super().init(*pargs, **kwargs)
         self.sql_init()
+        if not hasattr(self, 'mandate_application'):
+            self.initializeAttribute('mandate_application', MandateApplication)
 
     def db_get(self, column):
         if column == 'complex_name':
@@ -332,6 +356,8 @@ class Unit(DAObject, SQLObject):
             return self.parking
         elif column == 'pet_friendly':
             return self.pet_friendly
+        if column == 'application_id':     
+            return self.mandate_application.id  
         else:
             raise Exception("Invalid column " + column) 
 
@@ -376,6 +402,8 @@ class Unit(DAObject, SQLObject):
             self.parking = value
         elif column == 'pet_friendly':
             self.pet_friendly = value
+        elif column == 'application_id':
+            self.application_id = MandateApplication.by_id(value)
         else:
             raise Exception("Invalid column " + column) 
 
@@ -420,6 +448,8 @@ class Unit(DAObject, SQLObject):
             del self.parking 
         elif column == 'pet_friendly':
             del self.pet_friendly 
+        elif column == 'application_id':
+             del self.mandate_application.id
         else:
             raise Exception("Invalid column " + column)
 
@@ -432,6 +462,8 @@ class Account(DAObject, SQLObject):
     def init(self, *pargs, **kwargs, ):
         super().init(*pargs, **kwargs)
         self.sql_init()
+        if not hasattr(self, 'mandate_application'):
+            self.initializeAttribute('mandate_application', MandateApplication)
 
     def db_get(self, column):
         if column == 'account_holder':
@@ -441,7 +473,9 @@ class Account(DAObject, SQLObject):
         elif column == 'account_number':
             return self.bank_account_number 
         elif column == 'bank':
-            return self.account_bank 
+            return self.account_bank
+        if column == 'application_id':     
+            return self.mandate_application.id   
         else:
             raise Exception("Invalid column " + column) 
 
@@ -454,6 +488,8 @@ class Account(DAObject, SQLObject):
             self.bank_account_number = value
         elif column == 'bank':
             self.account_bank = value
+        elif column == 'application_id':
+            self.application_id = MandateApplication.by_id(value)
         else:
             raise Exception("Invalid column " + column) 
 
@@ -466,6 +502,8 @@ class Account(DAObject, SQLObject):
              del self.bank_account_number   
         elif column == 'bank':
              del self.account_bank   
+        elif column == 'application_id':
+             del self.mandate_application.id
         else:
             raise Exception("Invalid column " + column)
 
@@ -478,6 +516,8 @@ class BodyCorporate(DAObject, SQLObject):
     def init(self, *pargs, **kwargs, ):
         super().init(*pargs, **kwargs)
         self.sql_init()
+        if not hasattr(self, 'mandate_application'):
+            self.initializeAttribute('mandate_application', MandateApplication)
 
     def db_get(self, column): 
         if column == 'monthly_levy':
@@ -492,6 +532,8 @@ class BodyCorporate(DAObject, SQLObject):
             return self.account_no 
         elif column == 'bank':
             return self.bank 
+        elif column == 'branch_code':
+            return self.branch 
         elif column == 'address':
             return self.address 
         elif column == 'city':
@@ -502,6 +544,8 @@ class BodyCorporate(DAObject, SQLObject):
             return self.state 
         elif column == 'zip':
             return self.zip 
+        if column == 'application_id':     
+            return self.mandate_application.id   
         else:
             raise Exception("Invalid column " + column) 
 
@@ -516,8 +560,10 @@ class BodyCorporate(DAObject, SQLObject):
             self.account_type = value
         elif column == 'account_number':
             self.account_no = value
-        elif column == 'bank':
+        elif column == 'bank': 
             self.bank = value
+        elif column == 'branch_code': 
+            self.branch = value
         elif column == 'address':
             self.address = value
         elif column == 'city':
@@ -528,6 +574,8 @@ class BodyCorporate(DAObject, SQLObject):
             self.state = value
         elif column == 'zip':
             self.zip = value
+        elif column == 'application_id':
+            self.application_id = MandateApplication.by_id(value)
         else:
             raise Exception("Invalid column " + column) 
 
@@ -544,6 +592,8 @@ class BodyCorporate(DAObject, SQLObject):
              del self.account_no  
         elif column == 'bank':
              del self.bank
+        elif column == 'branch_code':
+             del self.branch
         elif column == 'address':
              del self.address  
         elif column == 'city':
@@ -554,59 +604,35 @@ class BodyCorporate(DAObject, SQLObject):
              del self.state  
         elif column == 'zip':
              del self.zip  
+        elif column == 'application_id':
+             del self.mandate_application.id
         else:
             raise Exception("Invalid column " + column)
 
-# class MandateApplication(DAObject, SQLObject):
-#     _model = MandateApplicationModel
-#     _session = DBSession
-#     _required = ['id']
-#     _uid = 'id'
+class MandateApplication(DAObject, SQLObject):
+    _model = MandateApplicationModel
+    _session = DBSession
+    _required = ['id']
+    _uid = 'id' 
 
-#     def init(self, *pargs, **kwargs, ):
-#         super().init(*pargs, **kwargs)
-#         self.sql_init() 
-#         # if not hasattr(self, 'tenant'):
-#         #     self.initializeAttribute('tenant', Tenant)
+    def init(self, *pargs, **kwargs, ):
+        super().init(*pargs, **kwargs)
+        self.sql_init() 
 
-#     def db_get(self, column): 
-#         if column == 'owner_id':
-#             return self.Levy_Renewal_Date 
-#         elif column == 'unit_id':
-#             return self.corporate_account_holder_name 
-#         elif column == 'account_id':
-#             return self.account_type 
-#         elif column == 'body_corporate_id':
-#             return self.account_no 
-#         else:
-#             raise Exception("Invalid column " + column) 
+    def db_get(self, column): 
+        if column == 'status':
+            return self.status 
+        else:
+            raise Exception("Invalid column " + column) 
 
-#     def db_set(self, column, value):
-#         if column == 'owner_id':
-#             self.owner_id = Owner.by_id(value)
-#         elif column == 'unit_id':
-#             self.unit_id = Unit.by_id(value)
-#         elif column == 'account_id':
-#             self.account_id = Account.by_id(value)
-#         elif column == 'body_corporate_id':
-#             self.body_corporate_id = BodyCorporate.by_id(value)
-#         else:
-#             raise Exception("Invalid column " + column) 
+    def db_set(self, column, value):
+        if column == 'status':
+            self.status = value  
+        else:
+            raise Exception("Invalid column " + column) 
 
-#     def db_null(self, column):
-#         if column == 'owner_id':
-#             del self.Levy_Renewal_Date
-#         elif column == 'unit_id':
-#              del self.corporate_account_holder_name   
-#         elif column == 'account_id':
-#              del self.account_type   
-#         elif column == 'body_corporate_id':
-#              del self.account_no   
-#         else:
-#             raise Exception("Invalid column " + column)
-
-#     def init(self, *pargs, **kwargs, ):
-#         super().init(*pargs, **kwargs)
-#         self.sql_init() 
-#         if not hasattr(self, 'tenant'):
-#             self.initializeAttribute('tenant', Tenant)
+    def db_null(self, column):
+        if column == 'status':
+            del self.status  
+        else:
+            raise Exception("Invalid column " + column)
