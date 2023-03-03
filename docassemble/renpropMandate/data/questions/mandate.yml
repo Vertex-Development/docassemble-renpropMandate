@@ -7,6 +7,13 @@ metadata:
     This interview produces a mandate to let for Renprop (Pty) Ltd. 
 ---
 
+features: 
+  inverse navbar: False  
+  debug: True
+  question back button: True 
+  css: custom.css
+---
+
 modules:
   # - .mandateDB 
   - .mandate_db
@@ -20,7 +27,16 @@ objects:
   - units: DAList.using(there_are_any=True, object_type=Unit, there_is_another=False)
   - account: Account
   - body_corporate: BodyCorporate
-  
+  - company_logo: DAStaticFile.using(filename='renprop_rentals_logo.png')   
+---
+
+mandatory: True
+code: |
+  multi_user = True
+  set_parts(logo='<img src="' + company_logo.url_for() + '" style="height: 79.5px; width: 107px;">')
+
+
+
 ---
 mandatory: True 
 code: |
@@ -71,23 +87,23 @@ code: |
 
 code: |
   for owner in owners:
-    owner.mandate_application = mandate_application 
+    owner.mandate_application_id = mandate_application.id
   set_owner = True
 ---
 
 code: |
   for unit in units:
-    unit.mandate_application = mandate_application 
+    unit.mandate_application_id = mandate_application.id
   set_unit = True
 ---
 
 code: |
-  account.mandate_application = mandate_application 
+  account.mandate_application_id = mandate_application.id
   set_account = True
 ---
 
 code: |
-  body_corporate.mandate_application = mandate_application 
+  body_corporate.mandate_application_id = mandate_application.id
   set_body_corporate = True
 ---
 
@@ -279,6 +295,7 @@ question: |
 fields:
   - Identity document: owners[i].unique_id_upload
     datatype: file
+    required: False
 
 ---
 generic object: DAObject
@@ -289,6 +306,7 @@ question: |
 fields:
   - Proof of address: owners[i].proof_of_address_upload
     datatype: file
+    required: False
 
 ---
 # get clarity from Renprop as to exactly what documents are required
@@ -300,6 +318,7 @@ question: |
 fields:
   - Entity resolution: owners[i].entity_resolution_upload
     datatype: file
+    required: False
 
 ---
 generic object: DAObject

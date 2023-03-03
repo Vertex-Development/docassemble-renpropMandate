@@ -132,8 +132,8 @@ class Owner(DAObject, SQLObject):
     def init(self, *pargs, **kwargs, ):
         super().init(*pargs, **kwargs)
         self.sql_init()
-        if not hasattr(self, 'mandate_application'):
-            self.initializeAttribute('mandate_application', MandateApplication)
+        # if not hasattr(self, 'mandate_application'):
+        #     self.initializeAttribute('mandate_application', MandateApplication)
 
     def db_get(self, column):
         if column == 'unique_identification_number':
@@ -187,7 +187,7 @@ class Owner(DAObject, SQLObject):
         if column == 'cpa_applicable':
             return self.cpa_applicable
         if column == 'application_id':     
-            return self.mandate_application.id  
+            return self.mandate_application_id  
         raise Exception("Invalid column " + column) 
 
     def db_set(self, column, value):
@@ -299,7 +299,7 @@ class Owner(DAObject, SQLObject):
         elif column == 'cpa_applicable':
              del self.cpa_applicable  
         elif column == 'application_id':
-             del self.mandate_application.id
+             del self.mandate_application_id
         else:
             raise Exception("Invalid column " + column)
 
@@ -312,8 +312,8 @@ class Unit(DAObject, SQLObject):
     def init(self, *pargs, **kwargs, ):
         super().init(*pargs, **kwargs)
         self.sql_init()
-        if not hasattr(self, 'mandate_application'):
-            self.initializeAttribute('mandate_application', MandateApplication)
+        # if not hasattr(self, 'mandate_application'):
+        #     self.initializeAttribute('mandate_application', MandateApplication)
 
     def db_get(self, column):
         if column == 'complex_name':
@@ -357,7 +357,7 @@ class Unit(DAObject, SQLObject):
         elif column == 'pet_friendly':
             return self.pet_friendly
         if column == 'application_id':     
-            return self.mandate_application.id  
+            return self.mandate_application_id  
         else:
             raise Exception("Invalid column " + column) 
 
@@ -449,7 +449,7 @@ class Unit(DAObject, SQLObject):
         elif column == 'pet_friendly':
             del self.pet_friendly 
         elif column == 'application_id':
-             del self.mandate_application.id
+             del self.mandate_application_id
         else:
             raise Exception("Invalid column " + column)
 
@@ -462,8 +462,8 @@ class Account(DAObject, SQLObject):
     def init(self, *pargs, **kwargs, ):
         super().init(*pargs, **kwargs)
         self.sql_init()
-        if not hasattr(self, 'mandate_application'):
-            self.initializeAttribute('mandate_application', MandateApplication)
+        # if not hasattr(self, 'mandate_application'):
+        #     self.initializeAttribute('mandate_application', MandateApplication)
 
     def db_get(self, column):
         if column == 'account_holder':
@@ -475,7 +475,7 @@ class Account(DAObject, SQLObject):
         elif column == 'bank':
             return self.account_bank
         if column == 'application_id':     
-            return self.mandate_application.id   
+            return self.mandate_application_id   
         else:
             raise Exception("Invalid column " + column) 
 
@@ -503,7 +503,7 @@ class Account(DAObject, SQLObject):
         elif column == 'bank':
              del self.account_bank   
         elif column == 'application_id':
-             del self.mandate_application.id
+             del self.mandate_application_id
         else:
             raise Exception("Invalid column " + column)
 
@@ -516,8 +516,8 @@ class BodyCorporate(DAObject, SQLObject):
     def init(self, *pargs, **kwargs, ):
         super().init(*pargs, **kwargs)
         self.sql_init()
-        if not hasattr(self, 'mandate_application'):
-            self.initializeAttribute('mandate_application', MandateApplication)
+        # if not hasattr(self, 'mandate_application'):
+        #     self.initializeAttribute('mandate_application', MandateApplication)
 
     def db_get(self, column): 
         if column == 'monthly_levy':
@@ -545,7 +545,7 @@ class BodyCorporate(DAObject, SQLObject):
         elif column == 'zip':
             return self.zip 
         if column == 'application_id':     
-            return self.mandate_application.id   
+            return self.mandate_application_id   
         else:
             raise Exception("Invalid column " + column) 
 
@@ -605,7 +605,7 @@ class BodyCorporate(DAObject, SQLObject):
         elif column == 'zip':
              del self.zip  
         elif column == 'application_id':
-             del self.mandate_application.id
+             del self.mandate_application_id
         else:
             raise Exception("Invalid column " + column)
 
